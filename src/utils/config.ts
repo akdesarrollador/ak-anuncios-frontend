@@ -1,0 +1,4 @@
+const BACKEND_ROOT = import.meta.env.VITE_BACKEND_ROOT
+const ENDPOINT_LOGIN = import.meta.env.VITE_ENDPOINT_LOGIN
+
+export { BACKEND_ROOT, ENDPOINT_LOGIN}

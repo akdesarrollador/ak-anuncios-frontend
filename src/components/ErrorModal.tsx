@@ -1,9 +1,5 @@
 import React from 'react';
-
-interface ErrorModalProps {
-  message: string;
-  onClose: () => void;
-}
+import ErrorModalProps from '../interfaces/ErrorModalProps';
 
 const ErrorModal: React.FC<ErrorModalProps> = ({ message, onClose }) => {
   return (
