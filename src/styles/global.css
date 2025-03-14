@@ -1,4 +1,3 @@
-/* global.css */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -9,7 +8,6 @@ body {
   box-sizing: border-box;
 }
 
-/* Ensure the app container takes the full height of the viewport */
 .app {
   display: flex;
   flex-direction: column;

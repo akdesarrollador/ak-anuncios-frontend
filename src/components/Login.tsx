@@ -20,7 +20,7 @@ const Login: React.FC = () => {
     try {
       await onLogin(password);
     } catch (err) {
-      setError('Invalid password. Please try again.');
+      setError('La contraseña no se encuentra en nuestros registros.');
     } finally {
       setLoading(false);
     }

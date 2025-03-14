@@ -11,13 +11,13 @@
 
 .login-header {
   text-align: center;
-  margin-bottom: 4rem; /* Space between header and form */
+  margin-bottom: 4rem;
 }
 
 .login-title {
   font-size: 3rem;
   color: #333;
-  margin-bottom: 0.5rem; /* Space between title and subtitle */
+  margin-bottom: 0.5rem;
 }
 
 .login-subtitle {
@@ -29,7 +29,7 @@
 .login-box {
   background: linear-gradient(to bottom, rgba(202, 207, 212, 0.5), rgba(115, 115, 115, 0.5));
   padding: 3rem;
-  border-radius: 30px; /* Increased border radius */
+  border-radius: 30px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
   max-width: 400px;
@@ -40,7 +40,7 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  width: 100%; /* Added width */
+  width: 100%;
 }
 
 .input-container {
@@ -49,9 +49,9 @@
 }
 
 .login-input {
-  padding: 0.75rem 2.5rem 0.75rem 0.75rem; /* Added padding for icon */
+  padding: 0.75rem 2.5rem 0.75rem 0.75rem;
   border: 1px solid #7c7c7c7d;
-  border-radius: 15px; /* Increased border radius */
+  border-radius: 15px;
   font-size: 1rem;
   outline: none;
   width: 100%;
@@ -76,27 +76,27 @@
   background-color: #333333;
   color: #ffffff;
   border: none;
-  border-radius: 15px; /* Increased border radius */
+  border-radius: 15px;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease; /* Added transform */
+  transition: background-color 0.3s ease, transform 0.2s ease;
   width: 50%;
-  align-self: center; /* Center the button in its container */
+  align-self: center;
 }
 
 .login-button:hover {
   background-color: #787878af;
-  transform: scale(1.02); /* Added hover effect */
+  transform: scale(1.02);
 }
 
 .login-button:active {
-  transform: scale(0.98); /* Added click effect */
+  transform: scale(0.98);
 }
 
 .login-button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
-  transform: none; /* Disable hover effect when disabled */
+  transform: none;
 }
 
 @media (max-width: 768px) {
@@ -132,7 +132,7 @@
   }
   
   .login-button {
-    padding: 0.5rem; /* Adjusted padding for smaller screens */
+    padding: 0.5rem;
   }
 }
 
@@ -148,6 +148,6 @@
   
   .login-button {
     width: 50px;
-    padding: 0.5rem; /* Adjusted padding for smaller screens */
+    padding: 0.5rem;
   }
 }

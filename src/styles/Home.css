@@ -1,112 +1,139 @@
-/* Full-screen container */
 .carousel-container {
-    width: 100vw;
-    height: 100vh;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.carousel-title {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  color: rgba(255, 255, 255, 0.70);
+  font-size: 2rem;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(-10px);
+  z-index: 1000;
+}
+
+.carousel-subtitle {
+  position: fixed;
+  top: 60px; /* Below title */
+  left: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.5rem;
+  font-weight: normal;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(-10px);
+  z-index: 1000;
+}
+
+.carousel-title.visible, .carousel-subtitle.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
   
-  /* Blurred background */
-  .blurred-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    filter: blur(20px); /* Add blur effect */
-    z-index: -1; /* Place behind the carousel */
-    /* opacity: 0; */
-    transition: opacity 0.5s ease; /* Smooth transition */
-  }
+.blurred-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(20px);
+  z-index: -1;
+  transition: background-image 0.5s ease-in-out;
+}
   
-  .blurred-background.active {
-    opacity: 1; /* Show when active */
-  }
+.blurred-background.active {
+  opacity: 1;
+}
   
-  /* Carousel */
-  .carousel {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+
+.carousel {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
   
-  .carousel img,
-  .carousel video {
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain; /* Ensure media fits without deformation */
-    display: none;
-  }
+.carousel img,
+.carousel video {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: none;
+}
   
-  .carousel img.active,
-  .carousel video.active {
-    display: block;
-  }
+.carousel img.active,
+.carousel video.active {
+  display: block;
+}
+
+.finish-button {
+  position: fixed;
+  bottom: -50px;
+  right: 20px;
+  padding: 12px 22px;
+  background: linear-gradient(#bd1616, #ff1c1c);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
   
-  /* Finish button */
+.finish-button.visible {
+  bottom: 20px;
+}
+  
+.finish-button:hover {
+  transform: scale(1.05);
+  background: linear-gradient(#ff7979, #ffc8c8);
+}
+  
+.finish-button:active {
+  transform: scale(0.95);
+}
+  
+
+@media (max-width: 768px) {
   .finish-button {
-    position: fixed;
-    bottom: -50px; /* Start hidden below the screen */
-    right: 20px;
-    padding: 12px 22px;
-    background: linear-gradient(#ff1c1c, #fb6d6d);
-    color: white;
-    border: none;
-    border-radius: 15px;
-    font-weight: bold;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
+    font-size: 0.9rem;
+    padding: 8px 16px;
+    right: 15px;
+    bottom: -40px;
   }
   
   .finish-button.visible {
-    bottom: 20px;
+    bottom: 15px;
+  }
+}
+  
+@media (max-width: 480px) {
+  .finish-button {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    right: 10px;
+    bottom: -30px;
   }
   
-  .finish-button:hover {
-    transform: scale(1.05); /* Hover effect */
-    background: linear-gradient(#ff7979, #ffc8c8);
+  .finish-button.visible {
+    bottom: 10px;
   }
-  
-  .finish-button:active {
-    transform: scale(0.95);
-  }
-  
-  /* Media queries for the finish button */
-  @media (max-width: 768px) {
-    .finish-button {
-      font-size: 0.9rem;
-      padding: 8px 16px;
-      right: 15px;
-      bottom: -40px;
-    }
-  
-    .finish-button.visible {
-      bottom: 15px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .finish-button {
-      font-size: 0.8rem;
-      padding: 6px 12px;
-      right: 10px;
-      bottom: -30px;
-    }
-  
-    .finish-button.visible {
-      bottom: 10px;
-    }
-  }
+}

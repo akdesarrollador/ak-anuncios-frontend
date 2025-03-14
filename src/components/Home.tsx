@@ -1,15 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import HomeProps from '../interfaces/HomeProps';
-import { useAuthStore } from '../store/useAuthStore';
-import { BACKEND_ROOT } from '../utils/config';
-import '../styles/Home.css';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import io from "socket.io-client";
+import HomeProps from "../interfaces/HomeProps";
+import { useAuthStore } from "../store/useAuthStore";
+import { BACKEND_ROOT, SOCKET_ROOT } from "../utils/config";
+import "../styles/Home.css";
 
 const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
+  const navigate = useNavigate();
+  const { password, onLogin, onLogout } = useAuthStore();
+  const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
   const [showButton, setShowButton] = useState(false);
-  const { onLogout } = useAuthStore()
+  const [showTitle, setShowTitle] = useState(false);
+
+  const sortedContent = [...content].sort((a, b) => 
+    (a.position_in_carousel ?? 0) - (b.position_in_carousel ?? 0)
+  );
+
+  useEffect(() => {
+    if (sortedContent.length > 0) {
+      const duration =
+        ((sortedContent[currentIndex].hour ?? 0) * 3600 +
+          (sortedContent[currentIndex].minute ?? 0) * 60 +
+          (sortedContent[currentIndex].seconds ?? 5)) * 1000; // Convert to ms (default 5s)
+
+      const interval = setTimeout(() => {
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % sortedContent.length);
+      }, duration);
+
+      return () => clearTimeout(interval);
+    }
+  }, [currentIndex, sortedContent]);
+
+  useEffect(() => {
+    const socket = io(`${SOCKET_ROOT}?password=${password}`);
+    console.log("Connected to Socket.io Server");
+
+    const events = [
+      "onNewGlobalContent",
+      "onDeletedGlobalContent",
+      "onDeviceDeleted",
+      "onAllContentRemoved",
+      "onNewContent",
+      "onRemovedContent",
+      "onUpdatedContent",
+    ];
+
+    const handleContentUpdate = () => {
+      if (password) onLogin(password);
+    };
+
+    events.forEach((event) => socket.on(event, handleContentUpdate));
+
+    return () => {
+      events.forEach((event) => {
+        socket.off(event, handleContentUpdate);
+      });
+      socket.disconnect();
+    };
+  }, [password, onLogin]);
+
+  useEffect(() => {
+    if (videoRef) {
+      captureThumbnail(videoRef);
+    }
+  }, [videoRef]);
 
   const captureThumbnail = (video: HTMLVideoElement) => {
     const canvas = document.createElement("canvas");
@@ -17,110 +74,114 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   
     if (!ctx) return;
   
-    // Ensure video metadata is loaded before capturing the frame
-    if (video.readyState >= 2) { // 'HAVE_CURRENT_DATA' or greater
+    if (video.readyState >= 2) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      setVideoThumbnail(canvas.toDataURL("image/jpeg"));
+      const thumbnail = canvas.toDataURL("image/jpeg");
+      setVideoThumbnail(thumbnail);
     } else {
-      // Retry when metadata is loaded
-      video.addEventListener("loadeddata", () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setVideoThumbnail(canvas.toDataURL("image/jpeg"));
-      }, { once: true });
+      video.addEventListener(
+        "loadeddata",
+        () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const thumbnail = canvas.toDataURL("image/jpeg");
+          setVideoThumbnail(thumbnail);
+        },
+        { once: true }
+      );
     }
   };
-  
-
-  useEffect(() => {
-    if (content.length > 0) {
-      const interval = setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % content.length);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [content]);
 
   return (
     <div
       className="carousel-container"
-      onMouseEnter={() => setShowButton(true)}
-      onMouseLeave={() => setShowButton(false)}
-    >
-
-    <div
-      className="blurred-background"
-      style={{
-        backgroundImage:
-          content.length > 0
-            ? content[currentIndex].url_content.endsWith('.mp4') ||
-              content[currentIndex].url_content.endsWith('.gif') ||
-              content[currentIndex].url_content.endsWith('.mov')
-              ? videoThumbnail
-                ? `url(${videoThumbnail})` // Use captured frame if available
-                : "none" // Avoid setting null, fallback to transparent
-              : `url(${encodeURI(BACKEND_ROOT + content[currentIndex].url_content)})`
-            : `url(${encodeURI(deviceParams.organization)}.svg)`,
-        backgroundColor: videoThumbnail ? "transparent" : "#000", // Avoid white background issue
+      onMouseEnter={() => {
+        setShowButton(true);
+        setShowTitle(true);
       }}
-    ></div>
+      onMouseLeave={() => {
+        setShowButton(false);
+        setShowTitle(false);
+      }}
+    >
+      {/* Background Image or Video Thumbnail */}
+      <div
+        className="blurred-background"
+        style={{
+          backgroundImage:
+            sortedContent.length > 0
+              ? sortedContent[currentIndex].url_content.endsWith(".mp4") ||
+                sortedContent[currentIndex].url_content.endsWith(".gif") ||
+                sortedContent[currentIndex].url_content.endsWith(".mov")
+                ? videoThumbnail
+                  ? `url(${videoThumbnail})`
+                  : "none"
+                : `url(${encodeURI(BACKEND_ROOT + sortedContent[currentIndex].url_content)})`
+              : `url(${encodeURI(deviceParams.organization)}.svg)`,
+          backgroundColor: videoThumbnail ? "transparent" : "#5a5a5a",
+        }}
+      ></div>
 
-    {/* Carousel */} 
-    <div className="carousel">
-      {content.length > 0 ? (
-        content.map((media, index) => {
-          const isActive = index === currentIndex;
-          const isVideo = media.url_content.endsWith('.mp4') || media.url_content.endsWith('.gif') || media.url_content.endsWith('.mov');
+      {/* Carousel */}
+      <div className="carousel">
+        {sortedContent.length > 0 ? (
+          sortedContent.map((media, index) => {
+            const isActive = index === currentIndex;
+            const isVideo =
+              media.url_content.endsWith(".mp4") ||
+              media.url_content.endsWith(".gif") ||
+              media.url_content.endsWith(".mov");
 
-          if (isVideo) {
-            return (
+            return isVideo ? (
               <video
                 key={media.content}
+                ref={isActive ? setVideoRef : null}
                 src={encodeURI(BACKEND_ROOT + media.url_content)}
                 autoPlay
                 muted
                 loop
-                className={isActive ? 'active' : ''}
-                onLoadedData={(e) => {
-                  if (isActive) {
-                    captureThumbnail(e.target as HTMLVideoElement);
-                  }
-                }}
-              ></video>
-            );
-          } else {
-            return (
+                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }} // **Apply rotation**
+                crossOrigin='anonymous'
+                className={isActive ? "active" : ""}
+              />
+            ) : (
               <img
-                key={media.content}
+                key={media.id_content}
                 src={encodeURI(BACKEND_ROOT + media.url_content)}
                 alt={`Media ${index}`}
-                className={isActive ? 'active' : ''}
+                className={isActive ? "active" : ""}
+                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }} // **Apply rotation**
               />
             );
-          }
-        })
-      ) : (
-        <img
-          key={deviceParams.organization}
-          src={`${encodeURI(deviceParams.organization)}.svg`}
-          alt={`Media ${deviceParams.organization}`}
-          className={'active'}
-        />
-      )}
-    </div>
+          })
+        ) : (
+          <img
+            key={deviceParams.organization}
+            src={`${encodeURI(deviceParams.organization)}.svg`}
+            alt={`Media ${deviceParams.organization}`}
+            className={"active"}
+          />
+        )}
+      </div>
 
-    {/* Finish button */}
-    <button
-        className={`finish-button ${showButton ? 'visible' : ''}`}
+      {/* Title and Subtitle */}
+      <h1 className={`carousel-title ${showTitle ? "visible" : ""}`}>
+        {deviceParams.business_unity}
+      </h1>
+      <h2 className={`carousel-subtitle ${showTitle ? "visible" : ""}`}>Descripción del dispositivo</h2>
+
+      {/* Finish Button */}
+      <button
+        className={`finish-button ${showButton ? "visible" : ""}`}
         onClick={() => {
-          onLogout()
-          const navigate = useNavigate();
-          navigate('/');
+          onLogout();
+          navigate("/");
         }}
-      >Finalizar
+      >
+        Finalizar
       </button>
     </div>
   );

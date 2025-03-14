@@ -7,6 +7,7 @@ interface Content {
     play_end_date: Date,
     position_in_carousel: number,
     hour: number,
+    minute: number,
     seconds: number,
     rotation: number
 }
