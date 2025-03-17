@@ -2,6 +2,7 @@ import axios from "axios"
 import { BACKEND_ROOT } from "../utils/config"
 
 const API = axios.create({
+     timeout: 10000,
      baseURL: BACKEND_ROOT,
      headers: {
           "Content-Type": "application/json",

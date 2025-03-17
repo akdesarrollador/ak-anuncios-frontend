@@ -14,9 +14,11 @@ interface Content {
 
 interface DeviceParams {
     id: number,
+    description: string,
     organization: string,
     business_unity: string,
-    area: string
+    area: string,
+    type: string
 }
 
 interface HomeProps {

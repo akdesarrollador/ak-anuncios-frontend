@@ -4,6 +4,7 @@ import io from "socket.io-client";
 import HomeProps from "../interfaces/HomeProps";
 import { useAuthStore } from "../store/useAuthStore";
 import { BACKEND_ROOT, SOCKET_ROOT } from "../utils/config";
+import axios from "axios";
 import "../styles/Home.css";
 
 const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
@@ -14,30 +15,42 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
   const [showButton, setShowButton] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
-
-  const sortedContent = [...content].sort((a, b) => 
-    (a.position_in_carousel ?? 0) - (b.position_in_carousel ?? 0)
+  const [videoDurations, setVideoDurations] = useState<{ [key: number]: number }>({});
+  
+  const sortedContent = [...content].sort(
+    (a, b) => (a.position_in_carousel ?? 0) - (b.position_in_carousel ?? 0)
   );
 
-  useEffect(() => {
-    if (sortedContent.length > 0) {
-      const duration =
-        ((sortedContent[currentIndex].hour ?? 0) * 3600 +
-          (sortedContent[currentIndex].minute ?? 0) * 60 +
-          (sortedContent[currentIndex].seconds ?? 5)) * 1000; // Convert to ms (default 5s)
+  const currentItem = sortedContent[currentIndex] ?? null;
+  
+  const handleContentUpdate = async (retries = 3) => {
+    if (!password) return;
 
-      const interval = setTimeout(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % sortedContent.length);
-      }, duration);
+    console.log(`Update detected. Refreshing content for device ${password}...`);
 
-      return () => clearTimeout(interval);
+    try {
+      await onLogin(password); 
+      setCurrentIndex(0);
+    } catch (error) {
+      console.error("Error updating content:", error);
+
+      if (axios.isAxiosError(error)) {
+        if (error.code === 'ERR_NETWORK' && retries > 0) {
+          console.log(`Retrying... Attempts left: ${retries}`);
+          setTimeout(() => handleContentUpdate(retries - 1), 2000); // Retry after 2 seconds
+        } else {
+          alert("Network error. Please check your connection.");
+        }
+      } else {
+        alert("An unexpected error occurred.");
+      }
     }
-  }, [currentIndex, sortedContent]);
+  };
 
   useEffect(() => {
     const socket = io(`${SOCKET_ROOT}?password=${password}`);
     console.log("Connected to Socket.io Server");
-
+  
     const events = [
       "onNewGlobalContent",
       "onDeletedGlobalContent",
@@ -47,13 +60,9 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       "onRemovedContent",
       "onUpdatedContent",
     ];
-
-    const handleContentUpdate = () => {
-      if (password) onLogin(password);
-    };
-
+  
     events.forEach((event) => socket.on(event, handleContentUpdate));
-
+  
     return () => {
       events.forEach((event) => {
         socket.off(event, handleContentUpdate);
@@ -61,6 +70,40 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       socket.disconnect();
     };
   }, [password, onLogin]);
+
+  useEffect(() => {
+    if (sortedContent.length > 0 && currentIndex < sortedContent.length) {
+      const currentItem = sortedContent[currentIndex];
+  
+      let duration = 5000; // Default 5s
+  
+      if (currentItem?.url_content?.endsWith(".mp4") || 
+          currentItem?.url_content?.endsWith(".mov") || 
+          currentItem?.url_content?.endsWith(".gif")) {
+        duration = videoDurations[currentItem.id_content] ?? 5000;
+      } else {
+        duration =
+          ((currentItem?.hour ?? 0) * 3600 +
+            (currentItem?.minute ?? 0) * 60 +
+            (currentItem?.seconds ?? 5)) * 1000;
+      }
+  
+      const interval = setTimeout(() => {
+        setCurrentIndex((prevIndex) => 
+          sortedContent.length > 0 ? (prevIndex + 1) % sortedContent.length : 0
+        );
+      }, duration);
+  
+      return () => clearTimeout(interval);
+    }
+  }, [currentIndex, sortedContent, videoDurations]);
+  
+
+  const handleVideoMetadata = (video: HTMLVideoElement, id: number) => {
+    if (video.duration && !videoDurations[id]) {
+      setVideoDurations((prev) => ({ ...prev, [id]: video.duration * 1000 }));
+    }
+  };
 
   useEffect(() => {
     if (videoRef) {
@@ -71,9 +114,9 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const captureThumbnail = (video: HTMLVideoElement) => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-  
+
     if (!ctx) return;
-  
+
     if (video.readyState >= 2) {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -107,23 +150,23 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
         setShowTitle(false);
       }}
     >
-      {/* Background Image or Video Thumbnail */}
-      <div
-        className="blurred-background"
-        style={{
-          backgroundImage:
-            sortedContent.length > 0
-              ? sortedContent[currentIndex].url_content.endsWith(".mp4") ||
-                sortedContent[currentIndex].url_content.endsWith(".gif") ||
-                sortedContent[currentIndex].url_content.endsWith(".mov")
-                ? videoThumbnail
-                  ? `url(${videoThumbnail})`
-                  : "none"
-                : `url(${encodeURI(BACKEND_ROOT + sortedContent[currentIndex].url_content)})`
-              : `url(${encodeURI(deviceParams.organization)}.svg)`,
-          backgroundColor: videoThumbnail ? "transparent" : "#5a5a5a",
-        }}
-      ></div>
+    {/* Background Image or Video Thumbnail */}
+    <div
+      className="blurred-background"
+      style={{
+        backgroundImage:
+          currentItem
+            ? currentItem.url_content?.endsWith(".mp4") ||
+              currentItem.url_content?.endsWith(".gif") ||
+              currentItem.url_content?.endsWith(".mov")
+              ? videoThumbnail
+                ? `url(${videoThumbnail})`
+                : "none"
+              : `url(${encodeURI(BACKEND_ROOT + currentItem.url_content)})`
+            : `url(${encodeURI(deviceParams.organization)}.svg)`,
+        backgroundColor: videoThumbnail ? "transparent" : "#5a5a5a",
+      }}
+    ></div>;
 
       {/* Carousel */}
       <div className="carousel">
@@ -137,15 +180,16 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
 
             return isVideo ? (
               <video
-                key={media.content}
+                key={media.id_content}
                 ref={isActive ? setVideoRef : null}
                 src={encodeURI(BACKEND_ROOT + media.url_content)}
                 autoPlay
                 muted
                 loop
-                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }} // **Apply rotation**
-                crossOrigin='anonymous'
+                onLoadedMetadata={(e) => handleVideoMetadata(e.target as HTMLVideoElement, media.id_content)}
+                crossOrigin="anonymous"
                 className={isActive ? "active" : ""}
+                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }}
               />
             ) : (
               <img
@@ -153,7 +197,7 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
                 src={encodeURI(BACKEND_ROOT + media.url_content)}
                 alt={`Media ${index}`}
                 className={isActive ? "active" : ""}
-                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }} // **Apply rotation**
+                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }}
               />
             );
           })
@@ -171,7 +215,7 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       <h1 className={`carousel-title ${showTitle ? "visible" : ""}`}>
         {deviceParams.business_unity}
       </h1>
-      <h2 className={`carousel-subtitle ${showTitle ? "visible" : ""}`}>Descripción del dispositivo</h2>
+      <h2 className={`carousel-subtitle ${showTitle ? "visible" : ""}`}>{deviceParams.description}</h2>
 
       {/* Finish Button */}
       <button
@@ -188,3 +232,4 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
 };
 
 export default Home;
+
