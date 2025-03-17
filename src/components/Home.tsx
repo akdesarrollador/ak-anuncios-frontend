@@ -37,7 +37,7 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       if (axios.isAxiosError(error)) {
         if (error.code === 'ERR_NETWORK' && retries > 0) {
           console.log(`Retrying... Attempts left: ${retries}`);
-          setTimeout(() => handleContentUpdate(retries - 1), 2000); // Retry after 2 seconds
+          setTimeout(() => handleContentUpdate(retries - 1), 2000);
         } else {
           alert("Network error. Please check your connection.");
         }
@@ -50,26 +50,34 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   useEffect(() => {
     const socket = io(`${SOCKET_ROOT}?password=${password}`);
     console.log("Connected to Socket.io Server");
+
+    const handleDeviceDeletion = () => {
+      console.log("Device deleted. Logging out...");
+      onLogout();
+      navigate("/");
+    };
   
     const events = [
       "onNewGlobalContent",
       "onDeletedGlobalContent",
-      "onDeviceDeleted",
-      "onAllContentRemoved",
       "onNewContent",
       "onRemovedContent",
       "onUpdatedContent",
+      "onAllContentRemoved"
     ];
   
     events.forEach((event) => socket.on(event, handleContentUpdate));
+
+    socket.on("onDeviceDeleted", handleDeviceDeletion);
   
     return () => {
       events.forEach((event) => {
         socket.off(event, handleContentUpdate);
       });
+      socket.off("onDeviceDeleted", handleDeviceDeletion);
       socket.disconnect();
     };
-  }, [password, onLogin]);
+  }, [password, onLogin, onLogout, navigate]);
 
   useEffect(() => {
     if (sortedContent.length > 0 && currentIndex < sortedContent.length) {
