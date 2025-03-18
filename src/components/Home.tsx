@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import io from "socket.io-client";
+import io, { Socket } from "socket.io-client";
+import { debounce } from "lodash";
 import HomeProps from "../interfaces/HomeProps";
+import CarouselItem from "./CarouselItem";
 import { useAuthStore } from "../store/useAuthStore";
 import { BACKEND_ROOT, SOCKET_ROOT } from "../utils/config";
-import axios from "axios";
 import "../styles/Home.css";
 
 const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
@@ -16,108 +17,39 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const [showButton, setShowButton] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const [videoDurations, setVideoDurations] = useState<{ [key: number]: number }>({});
+  const socketRef = useRef<Socket | null>(null);
   
-  const sortedContent = [...content].sort(
-    (a, b) => (a.position_in_carousel ?? 0) - (b.position_in_carousel ?? 0)
-  );
+  const validContent = useMemo(() => {
+    const now = new Date();
+    return content.filter((item) => {
+      const playBeginningDate = item.play_beginning_date ? new Date(item.play_beginning_date) : null;
+      const playEndDate = item.play_end_date ? new Date(item.play_end_date) : null;
+      return (!playBeginningDate || now >= playBeginningDate) &&
+             (!playEndDate || now <= playEndDate);
+    });
+  }, [content]);
+
+  const sortedContent = useMemo(() => {
+    return [...validContent].sort(
+      (a, b) => (a.position_in_carousel ?? Number.MAX_SAFE_INTEGER) - (b.position_in_carousel ?? Number.MAX_SAFE_INTEGER)
+    );
+  }, [validContent]);
 
   const currentItem = sortedContent[currentIndex] ?? null;
-  
-  const handleContentUpdate = async (retries = 3) => {
-    if (!password) return;
 
-    console.log(`Update detected. Refreshing content for device ${password}...`);
-
-    try {
-      await onLogin(password); 
-      setCurrentIndex(0);
-    } catch (error) {
-      console.error("Error updating content:", error);
-
-      if (axios.isAxiosError(error)) {
-        if (error.code === 'ERR_NETWORK' && retries > 0) {
-          console.log(`Retrying... Attempts left: ${retries}`);
-          setTimeout(() => handleContentUpdate(retries - 1), 2000);
-        } else {
-          alert("Network error. Please check your connection.");
-        }
-      } else {
-        alert("An unexpected error occurred.");
+  const handleContentUpdate = useCallback(
+    debounce(async () => {
+      if (!password) return;
+      console.log(`Updating content for device ${password}...`);
+      try {
+        await onLogin(password);
+        setCurrentIndex(0);
+      } catch (error) {
+        console.error("Error updating content:", error);
       }
-    }
-  };
-
-  useEffect(() => {
-    const socket = io(`${SOCKET_ROOT}?password=${password}`);
-    console.log("Connected to Socket.io Server");
-
-    const handleDeviceDeletion = () => {
-      console.log("Device deleted. Logging out...");
-      onLogout();
-      navigate("/");
-    };
-  
-    const events = [
-      "onNewGlobalContent",
-      "onDeletedGlobalContent",
-      "onNewContent",
-      "onRemovedContent",
-      "onUpdatedContent",
-      "onAllContentRemoved"
-    ];
-  
-    events.forEach((event) => socket.on(event, handleContentUpdate));
-
-    socket.on("onDeviceDeleted", handleDeviceDeletion);
-  
-    return () => {
-      events.forEach((event) => {
-        socket.off(event, handleContentUpdate);
-      });
-      socket.off("onDeviceDeleted", handleDeviceDeletion);
-      socket.disconnect();
-    };
-  }, [password, onLogin, onLogout, navigate]);
-
-  useEffect(() => {
-    if (sortedContent.length > 0 && currentIndex < sortedContent.length) {
-      const currentItem = sortedContent[currentIndex];
-  
-      let duration = 5000; // Default 5s
-  
-      if (currentItem?.url_content?.endsWith(".mp4") || 
-          currentItem?.url_content?.endsWith(".mov") || 
-          currentItem?.url_content?.endsWith(".gif")) {
-        duration = videoDurations[currentItem.id_content] ?? 5000;
-      } else {
-        duration =
-          ((currentItem?.hour ?? 0) * 3600 +
-            (currentItem?.minute ?? 0) * 60 +
-            (currentItem?.seconds ?? 5)) * 1000;
-      }
-  
-      const interval = setTimeout(() => {
-        setCurrentIndex((prevIndex) => 
-          sortedContent.length > 0 ? (prevIndex + 1) % sortedContent.length : 0
-        );
-      }, duration);
-  
-      return () => clearTimeout(interval);
-    }
-  }, [currentIndex, sortedContent, videoDurations]);
-  
-
-  const handleVideoMetadata = (video: HTMLVideoElement, id: number) => {
-    if (video.duration && !videoDurations[id]) {
-      setVideoDurations((prev) => ({ ...prev, [id]: video.duration * 1000 }));
-    }
-  };
-
-  useEffect(() => {
-    if (videoRef) {
-      captureThumbnail(videoRef);
-    }
-  }, [videoRef]);
+    }, 3000),
+    [password]
+  );
 
   const captureThumbnail = (video: HTMLVideoElement) => {
     const canvas = document.createElement("canvas");
@@ -146,6 +78,72 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
     }
   };
 
+  const handleVideoMetadata = (video: HTMLVideoElement, id: number) => {
+    setVideoDurations((prev) =>
+      prev[id] ? prev : { ...prev, [id]: video.duration * 1000 }
+    );
+  };
+
+  useEffect(() => {
+    if (!socketRef.current) {
+      socketRef.current = io(`${SOCKET_ROOT}?password=${password}`);
+      console.log("Connected to Socket.io Server");
+  
+      const handleDeviceDeletion = () => {
+        console.log("Device deleted. Logging out...");
+        onLogout();
+        navigate("/");
+      };
+  
+      const events = [
+        "onNewGlobalContent",
+        "onDeletedGlobalContent",
+        "onNewContent",
+        "onRemovedContent",
+        "onUpdatedContent",
+        "onAllContentRemoved"
+      ];
+  
+      events.forEach((event) => socketRef.current!.on(event, handleContentUpdate));
+      socketRef.current!.on("onDeviceDeleted", handleDeviceDeletion);
+    }
+  
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sortedContent.length > 0 && currentIndex < sortedContent.length) {
+      const currentItem = sortedContent[currentIndex];
+  
+      let duration = 3500
+  
+      if (currentItem?.url_content?.endsWith(".mp4") || 
+          currentItem?.url_content?.endsWith(".mov") || 
+          currentItem?.url_content?.endsWith(".gif")) {
+        duration = videoDurations[currentItem.id_content] ?? 5000;
+      } else if (currentItem.hour !== null || currentItem.minute !== null || currentItem.seconds !== null) {
+        duration = ((currentItem?.hour ?? 0) * 3600 + (currentItem?.minute ?? 0) * 60 + (currentItem?.seconds ?? 5)) * 1000;
+      }
+  
+      const interval = setTimeout(() => {
+        setCurrentIndex((prevIndex) => sortedContent.length > 0 ? (prevIndex + 1) % sortedContent.length : 0);
+      }, duration);
+  
+      return () => clearTimeout(interval);
+    }
+  }, [currentIndex, sortedContent, videoDurations]);
+
+  useEffect(() => {
+    if (videoRef) {
+      captureThumbnail(videoRef);
+    }
+  }, [videoRef]);
+
   return (
     <div
       className="carousel-container"
@@ -158,57 +156,37 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
         setShowTitle(false);
       }}
     >
-    {/* Background Image or Video Thumbnail */}
-    <div
-      className="blurred-background"
-      style={{
-        backgroundImage:
-          currentItem
-            ? currentItem.url_content?.endsWith(".mp4") ||
-              currentItem.url_content?.endsWith(".gif") ||
-              currentItem.url_content?.endsWith(".mov")
-              ? videoThumbnail
-                ? `url(${videoThumbnail})`
-                : "none"
-              : `url(${encodeURI(BACKEND_ROOT + currentItem.url_content)})`
-            : `url(${encodeURI(deviceParams.organization)}.svg)`,
-        backgroundColor: videoThumbnail ? "transparent" : "#5a5a5a",
-      }}
-    ></div>;
+
+      {/* Background Image or Video Thumbnail */}
+      <div
+        className="blurred-background"
+        style={{
+          backgroundImage:
+            currentItem
+              ? currentItem.url_content?.endsWith(".mp4") ||
+                currentItem.url_content?.endsWith(".gif") ||
+                currentItem.url_content?.endsWith(".mov")
+                ? videoThumbnail
+                  ? `url(${videoThumbnail})`
+                  : "none"
+                : `url(${encodeURI(BACKEND_ROOT + currentItem.url_content)})`
+              : `url(${encodeURI(deviceParams.organization)}.svg)`,
+          backgroundColor: videoThumbnail ? "transparent" : "#5a5a5a",
+        }}
+      ></div>;
 
       {/* Carousel */}
       <div className="carousel">
         {sortedContent.length > 0 ? (
-          sortedContent.map((media, index) => {
-            const isActive = index === currentIndex;
-            const isVideo =
-              media.url_content.endsWith(".mp4") ||
-              media.url_content.endsWith(".gif") ||
-              media.url_content.endsWith(".mov");
-
-            return isVideo ? (
-              <video
-                key={media.id_content}
-                ref={isActive ? setVideoRef : null}
-                src={encodeURI(BACKEND_ROOT + media.url_content)}
-                autoPlay
-                muted
-                loop
-                onLoadedMetadata={(e) => handleVideoMetadata(e.target as HTMLVideoElement, media.id_content)}
-                crossOrigin="anonymous"
-                className={isActive ? "active" : ""}
-                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }}
-              />
-            ) : (
-              <img
-                key={media.id_content}
-                src={encodeURI(BACKEND_ROOT + media.url_content)}
-                alt={`Media ${index}`}
-                className={isActive ? "active" : ""}
-                style={{ transform: `rotate(${media.rotation ?? 0}deg)` }}
-              />
-            );
-          })
+          sortedContent.map((media, index) => (
+            <CarouselItem
+              key={media.id_content}
+              media={media}
+              isActive={index === currentIndex}
+              setVideoRef={index === currentIndex ? setVideoRef : undefined}
+              handleVideoMetadata={handleVideoMetadata}
+            />
+          ))
         ) : (
           <img
             key={deviceParams.organization}
@@ -240,4 +218,3 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
 };
 
 export default Home;
-
