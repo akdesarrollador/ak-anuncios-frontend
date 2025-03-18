@@ -30,7 +30,7 @@ const Login: React.FC = () => {
     <div className="login-container">
       {/* Title and Subtitle outside the form container */}
       <div className="login-header">
-        <h1 className="login-title">Alkosto Anuncios</h1>
+        <h1 className="login-title">Reproductor de Anuncios</h1>
         <h2 className="login-subtitle">
           Ingresa la contraseña de dispositivo suministrada por el departamento de marketing.
         </h2>
