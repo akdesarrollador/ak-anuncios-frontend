@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import Loader from './Loader';
 import ErrorModal from './ErrorModal';
+import login from '../api/login';
 import { useAuthStore } from '../store/useAuthStore';
+import { saveToCache, clearCache } from '../custom-hooks/useCache';
 import useFullScreen from '../custom-hooks/useFullScreen';
+import { BACKEND_ROOT } from '../utils/config';
 import { MdKey } from "react-icons/md";
 import '../styles/Login.css';
 
 const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
   const { onLogin } = useAuthStore();
+
   useFullScreen()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,9 +24,31 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      await onLogin(password);
+      const response = await login(password);
+
+      if (response && response.content) {
+        await clearCache()
+        let completed = 0
+
+        for (const item of response.content) {
+          const url = `${BACKEND_ROOT}${item.url_content}`;
+
+          try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            await saveToCache(item.id_content.toString(), blob);
+            completed++;
+          } catch (error) {
+            console.error(`Failed to cache ${url}`, error);
+          }
+          
+          setProgress(Math.round((completed / response.content.length) * 100));
+        }
+
+        onLogin(password, response.content, response.summary)
+      }
     } catch (err) {
-      setError('La contraseña no se encuentra en nuestros registros.');
+      setError("La contraseña no se encuentra en nuestros registros.");
     } finally {
       setLoading(false);
     }
@@ -57,12 +83,20 @@ const Login: React.FC = () => {
             className="login-button" 
             disabled={password.length > 0 ? false : true}
           >
-          {/* <button type="submit" className="login-button" disabled={loading}> */}
             {loading ? <Loader /> : 'Ingresar'}
           </button>
         </form>
         {error && <ErrorModal message={error} onClose={() => setError(null)} />}
       </div>
+
+      {loading && (
+        <div className="progress-modal">          
+          <p>Descargando contenido... {progress}%</p>
+          <div className="progress-bar">
+            <div style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

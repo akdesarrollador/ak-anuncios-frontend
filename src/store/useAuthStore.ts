@@ -11,11 +11,9 @@ export const useAuthStore = create<any>()(persist((set) => ({
         if(data.content && data.summary) set({ password, content: data.content, summary: data.summary })
         else set({ password: null, content: null, summary: null })
     },
-    onLogin: async (password: string) => {
-        const data = await login(password)
-
-        if(data.content && data.summary) {
-            set({ password, content: data.content, summary: data.summary })
+    onLogin: (password: string, content: any[], summary: any) => {
+        if(content && summary) {
+            set({ password, content, summary })
         } else set({ password: null, content: null, summary: null })
     },
     onLogout: () => {

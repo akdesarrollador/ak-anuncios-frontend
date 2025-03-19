@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import io, { Socket } from "socket.io-client";
 import { debounce } from "lodash";
 import HomeProps from "../interfaces/HomeProps";
+import login from "../api/login";
 import CarouselItem from "./CarouselItem";
+import { clearCache, getFromCache, saveToCache } from "../custom-hooks/useCache";
 import { useAuthStore } from "../store/useAuthStore";
 import useFullScreen from "../custom-hooks/useFullScreen";
 import { BACKEND_ROOT, SOCKET_ROOT } from "../utils/config";
@@ -12,7 +14,7 @@ import "../styles/Home.css";
 
 const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const navigate = useNavigate();
-  const { password, onLogin, onLogout } = useAuthStore();
+  const { password, onLogout } = useAuthStore();
   const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
@@ -20,6 +22,9 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const [showTitle, setShowTitle] = useState(false);
   const [videoDurations, setVideoDurations] = useState<{ [key: number]: number }>({});
   const inactivityTimer = useRef<number | null>(null);
+  const [cachedContent, setCachedContent] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const socketRef = useRef<Socket | null>(null);
   useFullScreen()
   
@@ -44,15 +49,44 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
     debounce(async () => {
       if (!password) return;
       console.log(`Updating content for device ${password}...`);
+      
       try {
-        await onLogin(password);
-        setCurrentIndex(0);
+        const response = await login(password);
+        if (response && response.content) {
+          await fetchAndCacheContent(response.content);
+          setCurrentIndex(0);
+        }
       } catch (error) {
         console.error("Error updating content:", error);
       }
     }, 3000),
     [password]
   );
+
+  const fetchAndCacheContent = async (content: any[]) => {
+    await clearCache();
+    setProgress(0);
+    setLoading(true);
+  
+    let completed = 0;
+    const totalItems = content.length;
+  
+    for (const item of content) {
+      const url = `${BACKEND_ROOT}${item.url_content}`;
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        await saveToCache(item.id_content.toString(), blob);
+      } catch (error) {
+        console.error(`Failed to cache ${url}`, error);
+      }
+  
+      completed++;
+      setProgress(Math.round((completed / totalItems) * 100));
+    }
+  
+    setLoading(false);
+  };
 
   const resetInactivityTimer = useCallback(() => {
     setShowButton(true);
@@ -69,27 +103,19 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const captureThumbnail = (video: HTMLVideoElement) => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-
+  
     if (!ctx) return;
-
-    if (video.readyState >= 2) {
+  
+    try {
+      video.crossOrigin = "anonymous"; // Ensure cross-origin handling
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const thumbnail = canvas.toDataURL("image/jpeg");
       setVideoThumbnail(thumbnail);
-    } else {
-      video.addEventListener(
-        "loadeddata",
-        () => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const thumbnail = canvas.toDataURL("image/jpeg");
-          setVideoThumbnail(thumbnail);
-        },
-        { once: true }
-      );
+    } catch (error) {
+      console.warn("Unable to generate video thumbnail due to security restrictions:", error);
+      setVideoThumbnail(null); // Fallback in case of security error
     }
   };
 
@@ -98,6 +124,28 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       prev[id] ? prev : { ...prev, [id]: video.duration * 1000 }
     );
   };
+
+  useEffect(() => {
+    const loadCachedContent = async () => {
+      const loadedContent = await Promise.all(
+        content.map(async (item) => {
+          const blob = await getFromCache(item.id_content.toString());
+          return { ...item, localUrl: blob ? URL.createObjectURL(blob) : item.url_content };
+        })
+      );
+      setCachedContent(loadedContent);
+    };
+    loadCachedContent();
+  }, [content]);
+
+  useEffect(() => {
+    if (cachedContent.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % cachedContent.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [cachedContent]);
 
   useEffect(() => {
     window.addEventListener("mousemove", resetInactivityTimer);
@@ -191,8 +239,8 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
 
       {/* Carousel */}
       <div className="carousel">
-        {sortedContent.length > 0 ? (
-          sortedContent.map((media, index) => (
+        {cachedContent.length > 0 ? (
+          cachedContent.map((media, index) => (
             <CarouselItem
               key={media.id_content}
               media={media}
@@ -222,13 +270,23 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       {/* Finish Button */}
       <button
         className={`finish-button ${showButton ? "visible" : ""}`}
-        onClick={() => {
+        onClick={async () => {
           onLogout();
+          await clearCache()
           navigate("/");
         }}
       >
         Finalizar
       </button>
+
+      {loading && (
+        <div className="progress-modal">
+          <p>Actualizando contenido... {progress}%</p>
+          <div className="progress-bar">
+            <div style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
