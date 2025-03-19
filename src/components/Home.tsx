@@ -5,7 +5,9 @@ import { debounce } from "lodash";
 import HomeProps from "../interfaces/HomeProps";
 import CarouselItem from "./CarouselItem";
 import { useAuthStore } from "../store/useAuthStore";
+import useFullScreen from "../custom-hooks/useFullScreen";
 import { BACKEND_ROOT, SOCKET_ROOT } from "../utils/config";
+import events from "../utils/socketEvents";
 import "../styles/Home.css";
 
 const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
@@ -17,15 +19,16 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   const [showButton, setShowButton] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const [videoDurations, setVideoDurations] = useState<{ [key: number]: number }>({});
+  const inactivityTimer = useRef<number | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  useFullScreen()
   
   const validContent = useMemo(() => {
     const now = new Date();
     return content.filter((item) => {
       const playBeginningDate = item.play_beginning_date ? new Date(item.play_beginning_date) : null;
       const playEndDate = item.play_end_date ? new Date(item.play_end_date) : null;
-      return (!playBeginningDate || now >= playBeginningDate) &&
-             (!playEndDate || now <= playEndDate);
+      return (!playBeginningDate || now >= playBeginningDate) && (!playEndDate || now <= playEndDate);
     });
   }, [content]);
 
@@ -50,6 +53,18 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
     }, 3000),
     [password]
   );
+
+  const resetInactivityTimer = useCallback(() => {
+    setShowButton(true);
+    setShowTitle(true);
+  
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+  
+    inactivityTimer.current = window.setTimeout(() => {
+      setShowButton(false);
+      setShowTitle(false);
+    }, 3000);
+  }, []);
 
   const captureThumbnail = (video: HTMLVideoElement) => {
     const canvas = document.createElement("canvas");
@@ -85,6 +100,15 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
   };
 
   useEffect(() => {
+    window.addEventListener("mousemove", resetInactivityTimer);
+
+    return () => {
+      window.removeEventListener("mousemove", resetInactivityTimer);
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [resetInactivityTimer]);
+
+  useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io(`${SOCKET_ROOT}?password=${password}`);
       console.log("Connected to Socket.io Server");
@@ -94,15 +118,6 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
         onLogout();
         navigate("/");
       };
-  
-      const events = [
-        "onNewGlobalContent",
-        "onDeletedGlobalContent",
-        "onNewContent",
-        "onRemovedContent",
-        "onUpdatedContent",
-        "onAllContentRemoved"
-      ];
   
       events.forEach((event) => socketRef.current!.on(event, handleContentUpdate));
       socketRef.current!.on("onDeviceDeleted", handleDeviceDeletion);
@@ -156,7 +171,6 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
         setShowTitle(false);
       }}
     >
-
       {/* Background Image or Video Thumbnail */}
       <div
         className="blurred-background"
@@ -170,7 +184,7 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
                   ? `url(${videoThumbnail})`
                   : "none"
                 : `url(${encodeURI(BACKEND_ROOT + currentItem.url_content)})`
-              : `url(${encodeURI(deviceParams.organization)}.svg)`,
+              : `url(${encodeURI(deviceParams.organization)}${deviceParams.type === 'TV' ? '-Horizontal' : '-Vertical'}.svg)`,
           backgroundColor: videoThumbnail ? "transparent" : "#5a5a5a",
         }}
       ></div>;
@@ -190,7 +204,11 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
         ) : (
           <img
             key={deviceParams.organization}
-            src={`${encodeURI(deviceParams.organization)}.svg`}
+            src={
+              deviceParams.type === 'TV' ? 
+              `${encodeURI(deviceParams.organization)}-Horizontal.svg` : 
+              `${encodeURI(deviceParams.organization)}-Vertical.svg`
+            }
             alt={`Media ${deviceParams.organization}`}
             className={"active"}
           />
@@ -198,9 +216,7 @@ const Home: React.FC<HomeProps> = ({ content, deviceParams }) => {
       </div>
 
       {/* Title and Subtitle */}
-      <h1 className={`carousel-title ${showTitle ? "visible" : ""}`}>
-        {deviceParams.business_unity}
-      </h1>
+      <h1 className={`carousel-title ${showTitle ? "visible" : ""}`}>{deviceParams.business_unity}</h1>
       <h2 className={`carousel-subtitle ${showTitle ? "visible" : ""}`}>{deviceParams.description}</h2>
 
       {/* Finish Button */}

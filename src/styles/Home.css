@@ -84,14 +84,14 @@
 .finish-button {
   position: fixed;
   bottom: -50px;
-  right: 20px;
-  padding: 12px 22px;
+  right: 2rem;
+  padding: 14px 24px;
   background: linear-gradient(#bd1616, #ff1c1c);
   color: white;
   border: none;
   border-radius: 15px;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 2vw, 1.5rem);
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -99,7 +99,7 @@
 }
   
 .finish-button.visible {
-  bottom: 20px;
+  bottom: 2rem;
 }
   
 .finish-button:hover {
@@ -111,8 +111,22 @@
   transform: scale(0.95);
 }
   
+@media (max-width: 1024px) {
+  .carousel {
+    width: 100%;
+    height: 100%;
+  }
+}
 
 @media (max-width: 768px) {
+  .carousel-title {
+    font-size: 2rem;
+  }
+
+  .carousel-subtitle {
+    font-size: 1.3rem;
+  }
+
   .finish-button {
     font-size: 0.9rem;
     padding: 8px 16px;
@@ -126,6 +140,14 @@
 }
   
 @media (max-width: 480px) {
+  .carousel-title {
+    font-size: 1.5rem;
+  }
+
+  .carousel-subtitle {
+    font-size: 1rem;
+  }
+  
   .finish-button {
     font-size: 0.8rem;
     padding: 6px 12px;
@@ -135,5 +157,15 @@
   
   .finish-button.visible {
     bottom: 10px;
+  }
+}
+
+@media (max-width: 250px) {
+  .carousel-title {
+    font-size: 1.2rem;
+  }
+
+  .carousel-subtitle {
+    font-size: 0.8rem;
   }
 }

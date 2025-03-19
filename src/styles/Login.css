@@ -6,7 +6,7 @@
   min-height: 100vh;
   background-color: #f8f9fa;
   font-family: Arial, sans-serif;
-  padding: 1rem;
+  padding: 2rem;
 }
 
 .login-header {
@@ -15,31 +15,31 @@
 }
 
 .login-title {
-  font-size: 3rem;
+  font-size: clamp(2rem, 4vw, 4rem);
   color: #333;
   margin-bottom: 0.5rem;
 }
 
 .login-subtitle {
-  font-size: 1rem;
+  font-size: clamp(1rem, 2vw, 1.5rem);
   font-weight: lighter;
-  color: #666;
+  color: #666666b9;
 }
 
 .login-box {
   background: linear-gradient(to bottom, rgba(202, 207, 212, 0.5), rgba(115, 115, 115, 0.5));
-  padding: 3rem;
+  padding: clamp(2rem, 4vw, 4rem);
   border-radius: 30px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
-  max-width: 400px;
+  max-width: 450px;
   width: 100%;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   width: 100%;
 }
 
@@ -52,7 +52,7 @@
   padding: 0.75rem 2.5rem 0.75rem 0.75rem;
   border: 1px solid #7c7c7c7d;
   border-radius: 15px;
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
   outline: none;
   width: 100%;
 }
@@ -68,7 +68,7 @@
   top: 50%;
   transform: translateY(-50%);
   color: #666;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2vw, 1.5rem);
 }
 
 .login-button {
@@ -77,11 +77,12 @@
   color: #ffffff;
   border: none;
   border-radius: 15px;
-  font-size: 1rem;
+  font-size: clamp(1rem, 2vw, 1.5rem);
   cursor: pointer;
   transition: background-color 0.3s ease, transform 0.2s ease;
   width: 50%;
   align-self: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .login-button:hover {
@@ -94,9 +95,11 @@
 }
 
 .login-button:disabled {
-  background-color: #cccccc;
+  background-color: #33333354;
+  color: #ffffff7b;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 768px) {
@@ -105,7 +108,7 @@
   }
 
   .login-title {
-    font-size: 2.2rem;
+    font-size: 2.5rem;
   }
 
   .login-subtitle {
@@ -123,7 +126,7 @@
   }
 
   .login-subtitle {
-    font-size: 0.8rem;
+    font-size: 1rem;
   }
   
   .login-input,
@@ -149,5 +152,23 @@
   .login-button {
     width: 50px;
     padding: 0.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  .login-container {
+    padding: 4rem;
+  }
+
+  .login-box {
+    max-width: 600px;
+  }
+
+  .login-title {
+    font-size: 4rem;
+  }
+
+  .login-subtitle {
+    font-size: 2rem;
   }
 }

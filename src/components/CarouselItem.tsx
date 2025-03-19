@@ -1,16 +1,6 @@
 import React from "react";
+import CarouselItemProps from "../interfaces/CarouselItemProps";
 import { BACKEND_ROOT } from "../utils/config";
-
-interface CarouselItemProps {
-  media: {
-    id_content: number;
-    url_content: string;
-    rotation?: number | null;
-  };
-  isActive: boolean;
-  setVideoRef?: (video: HTMLVideoElement | null) => void;
-  handleVideoMetadata?: (video: HTMLVideoElement, id: number) => void;
-}
 
 const CarouselItem: React.FC<CarouselItemProps> = React.memo(
   ({ media, isActive, setVideoRef, handleVideoMetadata }) => {
@@ -19,7 +9,7 @@ const CarouselItem: React.FC<CarouselItemProps> = React.memo(
       media.url_content.endsWith(".mov") ||
       media.url_content.endsWith(".gif");
 
-    return isVideo && isActive ? ( //can fail here
+    return isVideo && isActive ? (
       <video
         key={media.id_content}
         ref={isActive ? setVideoRef ?? null : null}
@@ -45,5 +35,4 @@ const CarouselItem: React.FC<CarouselItemProps> = React.memo(
   }
 );
 
-// Memoize the component to prevent unnecessary re-renders
 export default React.memo(CarouselItem);

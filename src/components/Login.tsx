@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import Loader from './Loader';
 import ErrorModal from './ErrorModal';
 import { useAuthStore } from '../store/useAuthStore';
-import '../styles/Login.css';
+import useFullScreen from '../custom-hooks/useFullScreen';
 import { MdKey } from "react-icons/md";
+import '../styles/Login.css';
 
 const Login: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -11,6 +12,7 @@ const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const { onLogin } = useAuthStore();
+  useFullScreen()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +52,12 @@ const Login: React.FC = () => {
             />
             <MdKey className="input-icon" />
           </div>
-          <button type="submit" className="login-button" disabled={loading}>
+          <button 
+            type="submit" 
+            className="login-button" 
+            disabled={password.length > 0 ? false : true}
+          >
+          {/* <button type="submit" className="login-button" disabled={loading}> */}
             {loading ? <Loader /> : 'Ingresar'}
           </button>
         </form>
