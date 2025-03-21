@@ -82,7 +82,7 @@
 
 .finish-button {
   position: fixed;
-  bottom: -50px;
+  bottom: -500px;
   right: 2rem;
   padding: 14px 24px;
   background: linear-gradient(#bd1616, #ff1c1c);

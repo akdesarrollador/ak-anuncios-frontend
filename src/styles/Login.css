@@ -135,7 +135,7 @@
 .progress-bar div {
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #00d1b2, #00a6ff);
+  background: linear-gradient(202deg, rgba(213,7,39,1) 0%, rgba(0,84,166,1) 85%);
   transition: width 0.4s ease-in-out;
 }
 
