@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import login from '../api/login';
 import { saveDeviceSummary } from '../custom-hooks/useCache';
 import { saveToCache, clearCache } from '../custom-hooks/useCache';
-// import { MultimediaContent } from '../interfaces/DeviceData';
 import useFullScreen from '../custom-hooks/useFullScreen';
 import { BACKEND_ROOT } from '../utils/config';
 import { MdKey } from "react-icons/md";

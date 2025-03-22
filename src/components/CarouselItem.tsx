@@ -3,7 +3,7 @@ import CarouselItemProps from "../interfaces/CarouselItemProps";
 
 const CarouselItem: React.FC<CarouselItemProps> = React.memo(
   ({ media, isActive, setVideoRef, handleVideoMetadata }) => {
-    const isVideo = /\.(mp4|mov|gif)$/i.test(media.url_content);
+    const isVideo = /\.(mp4|mov|gif|avi|wmv|mkv|flv)$/i.test(media.url_content);
     const rotationStyle = { transform: `rotate(${media.rotation ?? 0}deg)` };
 
     if (isVideo && isActive) {

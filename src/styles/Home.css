@@ -109,6 +109,109 @@
 .finish-button:active {
   transform: scale(0.95);
 }
+
+.reset-device-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px); /* Soporte para Safari */
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem; /* Espacio en dispositivos móviles */
+}
+
+.reset-device-modal {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: modalEntrance 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  
+  /* Mejoras responsive */
+  margin: 0 1rem;
+  transition: all 0.3s ease;
+}
+
+.reset-device-modal h3 {
+  color: #2d3436;
+  margin-bottom: 1.2rem;
+  font-size: 1.6rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.countdown div {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  transition: width 1s linear;
+}
+
+.countdown {
+  height: 6px;
+  background: rgba(236, 240, 241, 0.5);
+  border-radius: 2px;
+  margin: 1.5rem 0;
+  overflow: hidden;
+}
+
+.reset-device-modal p{
+  color: #636e72;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+}
+
+.reset-device-modal-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+.reset-device-modal-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+  background: #c0392b;
+}
+
+.reset-device-modal-button:active {
+  transform: translateY(1px);
+}
+
+@keyframes modalEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
   
 @media (max-width: 1024px) {
   .carousel {
@@ -136,6 +239,27 @@
   .finish-button.visible {
     bottom: 15px;
   }
+
+  .reset-device-modal {
+    padding: 1.5rem;
+    border-radius: 10px;
+  }
+  
+  .reset-device-modal h3 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+  
+  .reset-device-modal p {
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .reset-device-modal-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+    max-width: 200px;
+  }
 }
   
 @media (max-width: 480px) {
@@ -157,6 +281,29 @@
   .finish-button.visible {
     bottom: 10px;
   }
+
+  .reset-device-modal-overlay {
+    padding: 0.5rem;
+  }
+  
+  .reset-device-modal {
+    padding: 1.2rem;
+  }
+  
+  .reset-device-modal h3 {
+    font-size: 1.3rem;
+  }
+  
+  .reset-device-modal p {
+    font-size: 0.9rem;
+    margin-bottom: 1.2rem;
+  }
+  
+  .reset-device-modal-button {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.85rem;
+    max-width: 180px;
+  }
 }
 
 @media (max-width: 250px) {
@@ -166,5 +313,10 @@
 
   .carousel-subtitle {
     font-size: 0.8rem;
+  }
+
+  .reset-device-modal-button {
+    letter-spacing: 0.5px;
+    padding: 0.6rem 1rem;
   }
 }

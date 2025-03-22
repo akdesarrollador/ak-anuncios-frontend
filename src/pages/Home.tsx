@@ -15,6 +15,8 @@ const Home: React.FC = () => {
   const [showButton, setShowButton] = useState(false);
   const [showTitle, setShowTitle] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showResetDeviceModal, setShowResetDeviceModal] = useState(false);
+  const [countdown, setCountdown] = useState(10);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
@@ -135,9 +137,86 @@ const Home: React.FC = () => {
       }
     } catch (error) {
       console.error("Error updating content:", error);
+      setShowResetDeviceModal(true);
     }
     setLoading(false);
   };
+
+  const handleFinish = async () => {
+    await clearCache();
+    setShowResetDeviceModal(false);
+    navigate("/");
+  };
+
+  const handleReload = useCallback(async () => {
+    setShowResetDeviceModal(false);
+    if (!deviceSummary) return;
+    
+    setLoading(true);
+    setProgress(0);
+
+    try {
+      const response = await login(deviceSummary.password);
+
+      if(response && response.content) {
+        const cacheCleared = await clearCachedContent();
+        if(!cacheCleared) console.error('Error al limpiar la cache.')
+
+        let completed = 0;
+        let newContentArray = []
+
+        for(const content of response.content) {
+          const url = `${BACKEND_ROOT}${content.url_content}`;
+
+          try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const contentBlobed = { ...content, localUrl: blob ? URL.createObjectURL(blob) : null };
+            
+            const contentSaved = await saveToCache(contentBlobed.content, contentBlobed)
+            if (!contentSaved) console.error('Error al guardar en cache: ', content.content);
+
+            newContentArray.push(contentBlobed)
+            completed++;
+            const newProgress = Math.round((completed / response.content.length) * 100)
+            setProgress(newProgress);
+          } catch (error) {
+            console.error('Error al procesar el contenido: ', content.url_content)
+          }
+        }
+
+        setCachedContent(newContentArray)
+        filterAndSortContent(newContentArray)
+      }
+    } catch (error) {
+      console.error("Error updating content:", error);
+      setShowResetDeviceModal(true);
+    }
+    setLoading(false);
+    
+  }, [navigate]);
+
+  useEffect(() => {
+    let interval: number = 0;
+  
+    if (showResetDeviceModal) {
+      interval = window.setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            handleReload();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+  
+    return () => {
+      if (interval) clearInterval(interval);
+      setCountdown(10);
+    };
+  }, [showResetDeviceModal, handleReload]);
 
   useEffect(() => {
     window.addEventListener("mousemove", resetInactivityTimer);
@@ -151,13 +230,24 @@ const Home: React.FC = () => {
   useEffect(() => {
     const loadCachedContent = async () => {
       const deviceData = await getDeviceData();
+      
       if (deviceData) {
-        setCachedContent(deviceData.content);
-        filterAndSortContent(deviceData.content);
-        setDeviceSummary(deviceData.summary);
-      } else navigate("/");
+        if(deviceData.content.length === 0 && deviceData.summary) {
+          try {
+            await login(deviceData.summary.password);
+          } catch (error) {
+            console.error('Error al guardar en cache. ', error)
+          }
+        } else {
+          setCachedContent(deviceData.content);
+          filterAndSortContent(deviceData.content);
+          setDeviceSummary(deviceData.summary);
+        }
+      } else {
+        navigate("/");
+      }
     };
-
+  
     loadCachedContent();
   }, [navigate]);
 
@@ -198,12 +288,21 @@ const Home: React.FC = () => {
     if (filteredContent.length > 0) {
       const currentItem = filteredContent[currentIndex];
 
+      if (!currentItem) {
+        setCurrentIndex(0); // Resetear índice si el item no existe
+        return;
+      }
+      
       let duration = 3500; // Default for images
 
-      if (currentItem?.url_content?.endsWith(".mp4") || currentItem?.url_content?.endsWith(".mov") || currentItem?.url_content?.endsWith(".gif")) {
+      if (currentItem?.url_content?.match(/\.(mp4|mov|gif)$/i)) {
         duration = videoDurations[currentItem.id_content] ?? 5000;
-      } else if (currentItem.hour !== null || currentItem.minute !== null || currentItem.seconds !== null) {
-        duration = ((currentItem?.hour ?? 0) * 3600 + (currentItem?.minute ?? 0) * 60 + (currentItem?.seconds ?? 5)) * 1000;
+      } else if (
+        [currentItem.hour, currentItem.minute, currentItem.seconds].some(
+          (val) => val !== null && val !== undefined
+        )
+      ) {
+        duration = ((currentItem.hour || 0) * 3600 + (currentItem.minute || 0) * 60 + (currentItem.seconds || 5)) * 1000;
       }
 
       const timeout = setTimeout(() => {
@@ -213,6 +312,10 @@ const Home: React.FC = () => {
       return () => clearTimeout(timeout);
     }
   }, [currentIndex, filteredContent, videoDurations]);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [filteredContent]);
 
   return (
     <div className="carousel-container"
@@ -233,7 +336,11 @@ const Home: React.FC = () => {
             filteredContent[currentIndex]
               ? filteredContent[currentIndex].url_content?.endsWith(".mp4") ||
                 filteredContent[currentIndex].url_content?.endsWith(".gif") ||
-                filteredContent[currentIndex].url_content?.endsWith(".mov")
+                filteredContent[currentIndex].url_content?.endsWith(".mov") ||
+                filteredContent[currentIndex].url_content?.endsWith(".avi") ||
+                filteredContent[currentIndex].url_content?.endsWith(".wmv") ||
+                filteredContent[currentIndex].url_content?.endsWith(".mkv") ||
+                filteredContent[currentIndex].url_content?.endsWith(".flv")
                 ? videoThumbnail
                   ? `url(${videoThumbnail})`
                   : "none"
@@ -289,13 +396,27 @@ const Home: React.FC = () => {
       {/* Finish Button */}
       <button
         className={`finish-button ${showButton ? "visible" : ""}`}
-        onClick={async () => {
-          await clearCache()
-          navigate("/");
-        }}
+        onClick={handleFinish}
       >
         Finalizar
       </button>
+
+      {/* Error Modal */}
+      {showResetDeviceModal && (
+        <div className="reset-device-modal-overlay">
+          <div className="reset-device-modal">
+            <h3><b>Error de actualización</b></h3>
+            <p>
+              Se detectó una actualización pero ocurrió un error. 
+              Reintentando en <b>{countdown} segundos</b>.
+            </p>
+            <div className="countdown">
+              <div style={{ width: `${(countdown / 10) * 100}%` }} />
+            </div>
+            <button className="reset-device-modal-button" onClick={handleReload}>Reintentar ahora</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
